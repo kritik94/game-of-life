@@ -1,4 +1,4 @@
-import { map, computed, onMount } from 'nanostores'
+import { atom, map, computed, onMount, listenKeys } from 'nanostores'
 
 function initRandCells(cnt = 100, spread = 25) {
     let res = {}
@@ -19,8 +19,9 @@ function init(_canvasRef, _ctx, _cells, _settings) {
     canvasRef = _canvasRef || document.getElementById("app")
     ctx = _ctx || canvasRef.getContext("2d")
 
-    cells = _cells || map(initRandCells())
+    cells = _cells || atom(initRandCells(100, 10))
     settings = _settings || map({
+        timeout: 250,
         gridSize: 50,
         canvas: {
             x: 0,
@@ -32,8 +33,8 @@ function init(_canvasRef, _ctx, _cells, _settings) {
 function load() {
     unbinds.push(
         onMount(settings, () => {
-            const listener = window.addEventListener("resize", resizeCanvas)
-            return () => window.removeEventListener("resize", listener)
+            const lst = window.addEventListener("resize", resizeCanvas)
+            return () => window.removeEventListener("resize", lst)
         })
     )
 
@@ -44,6 +45,15 @@ function load() {
     unbinds.push(
         store.listen(render)
     )
+
+    const next = () => {
+        const newCells = nextGeneration(cells.get())
+        cells.set(newCells)
+
+        const lst = setTimeout(next, settings.get().timeout)
+        unbinds.push(() => clearTimeout(lst))
+    }
+    setTimeout(next, settings.get().timeout)
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -71,6 +81,14 @@ if (module.hot) {
 }
 
 
+function crdTxy(crd) {
+    const [x, y] = crd.split(":").map(str => parseInt(str))
+    return {x, y}
+}
+
+function xyTcrd(x, y) {
+    return `${x}:${y}`
+}
 
 function resizeCanvas() {
     canvasRef.width = window.innerWidth
@@ -88,6 +106,8 @@ function render({settings, cells}) {
 
     // render grid
     const {gridSize, canvas: {x, y}} = settings
+
+    ctx.clearRect(0, 0, x, y)
 
     const cellWidth = Math.min(Math.floor(x / gridSize), Math.floor(y / gridSize))
     const paddingLeft = (x - Math.floor(x / cellWidth) * cellWidth) / 2
@@ -111,11 +131,68 @@ function render({settings, cells}) {
 
     // render cells
     Object.keys(cells).forEach(crd => {
-        const [x, y] = crd.split(":").map(str => parseInt(str))
+        const {x, y} = crdTxy(crd)
         const cellX = (x + Math.floor(gridX / 2)) * cellWidth + paddingLeft
         const cellY = (y + Math.floor(gridY / 2)) * cellWidth + paddingTop
 
         ctx.fillRect(cellX, cellY, cellWidth, cellWidth)
     })
+}
+
+function nextGeneration(cells) {
+    const possibleCells = Object.keys(cells)
+        .flatMap(crd => {
+            const {x, y} = crdTxy(crd)
+
+            let res = []
+            for (let i = x - 1; i <= x + 1; i++) {
+                for (let j = y - 1; j <= y + 1; j++) {
+                    if (i === x && j === y || cells[xyTcrd(i, j)]) {
+                        continue
+                    }
+                    res.push(xyTcrd(i, j))
+                }
+            }
+            return res
+        })
+        .reduce((acc, crd) => {
+            acc[crd] ||= 0
+            acc[crd]++
+            return acc
+        }, {})
+
+    const newCells = Object.fromEntries(
+        Object.entries(possibleCells)
+            .filter(([_, cnt]) => cnt === 3)
+            .map(([k, _]) => [k, true])
+    )
+
+    const survivingCells = Object.keys(cells)
+        .filter(crd => {
+            const {x, y} = crdTxy(crd)
+            let cnt = 0
+            for (let i = x - 1; i <= x + 1; i++) {
+                for (let j = y - 1; j <= y + 1; j++) {
+                    if (i === x && j === y) {
+                        continue
+                    }
+                    if (cells[xyTcrd(i, j)]) {
+                        cnt++
+                    }
+
+                    if (cnt > 3) {
+                        return false
+                    }
+                }
+            }
+
+            return cnt >= 2
+        })
+        .reduce((acc, crd) => {
+            acc[crd] = true
+            return acc
+        }, {})
+
+    return {...survivingCells, ...newCells}
 }
 
