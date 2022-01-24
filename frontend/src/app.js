@@ -5,7 +5,7 @@ const GAME_STATE_PAUSE = "pause"
 const GAME_STATE_PLAY = "play"
 
 function log(...args) {
-    if (process.env.NODE == "production") {
+    if (process.env.NODE_ENV === "production") {
         return
     }
     args.forEach(arg => console.log(arg))
@@ -14,8 +14,8 @@ function log(...args) {
 function initRandCells(cnt = 100, spread = 25) {
     let res = {}
     for (let i = 0; i < cnt; i++) {
-        x = Math.floor(Math.random() * spread * 2) - spread
-        y = Math.floor(Math.random() * spread * 2) - spread
+        const x = Math.floor(Math.random() * spread * 2) - spread
+        const y = Math.floor(Math.random() * spread * 2) - spread
 
         res[`${x}:${y}`] = true
     }
