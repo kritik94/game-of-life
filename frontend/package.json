@@ -5,8 +5,16 @@
   "source": "src/index.html",
   "author": "",
   "license": "ISC",
+  "browsersList": "> 0.5%, last 2 versions, not dead",
+  "parcelIgnore": [
+    "/apple-touch-icon.png",
+    "/favicon*",
+    "/site.webmanifest",
+    "/android-chrome-*"
+  ],
   "devDependencies": {
-    "parcel": "^2.2.1"
+    "parcel": "^2.2.1",
+    "parcel-resolver-ignore": "^2.0.0"
   },
   "dependencies": {
     "nanostores": "^0.5.8"
