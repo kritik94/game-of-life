@@ -1,4 +1,15 @@
-import { atom, map, computed, onMount, listenKeys } from 'nanostores'
+import { atom, map, computed, onMount, listenKeys, action } from 'nanostores'
+
+const GAME_STATE_INIT = "init"
+const GAME_STATE_PAUSE = "pause"
+const GAME_STATE_PLAY = "play"
+
+function log(...args) {
+    if (process.env.NODE == "production") {
+        return
+    }
+    args.forEach(arg => console.log(arg))
+}
 
 function initRandCells(cnt = 100, spread = 25) {
     let res = {}
@@ -15,18 +26,19 @@ function initRandCells(cnt = 100, spread = 25) {
 let canvasRef, ctx, cells, settings
 let unbinds = []
 function init(_canvasRef, _ctx, _cells, _settings) {
-    console.log("init")
+    log("init")
     canvasRef = _canvasRef || document.getElementById("app")
     ctx = _ctx || canvasRef.getContext("2d")
 
     cells = _cells || atom(initRandCells(100, 10))
     settings = _settings || map({
-        timeout: 250,
+        timeout: 100,
         gridSize: 50,
         canvas: {
             x: 0,
             y: 0,
-        }
+        },
+        gameState: GAME_STATE_INIT,
     })
 }
 
@@ -46,15 +58,36 @@ function load() {
         store.listen(render)
     )
 
-    const next = () => {
-        const newCells = nextGeneration(cells.get())
-        cells.set(newCells)
+    const play = action(settings, "play", store => {
+        log("play")
+        if (![GAME_STATE_INIT, GAME_STATE_PAUSE].includes(store.get().gameState)) {
+            return
+        }
 
-        const lst = setTimeout(next, settings.get().timeout)
-        unbinds.push(() => clearTimeout(lst))
-    }
-    setTimeout(next, settings.get().timeout)
+        store.setKey("gameState", GAME_STATE_PLAY)
+        const next = () => {
+            if (store.get().gameState !== GAME_STATE_PLAY) {
+                return
+            }
+
+            const newCells = nextGeneration(cells.get())
+            cells.set(newCells)
+
+            const lst = setTimeout(next, settings.get().timeout)
+            unbinds.push(() => clearTimeout(lst))
+        }
+
+        next()
+    })
+
+    const pause = action(settings, "pause", store => {
+        store.setKey("gameState", GAME_STATE_PAUSE)
+    })
+
+    // setTimeout(play, settings.get().timeout)
+    play()
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
     init()
@@ -102,7 +135,7 @@ function resizeCanvas() {
 }
 
 function render({settings, cells}) {
-    console.log("render")
+    log("render")
 
     // render grid
     const {gridSize, canvas: {x, y}} = settings
@@ -196,3 +229,4 @@ function nextGeneration(cells) {
     return {...survivingCells, ...newCells}
 }
 
+play = play
