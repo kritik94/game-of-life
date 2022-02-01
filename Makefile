@@ -5,3 +5,7 @@ build-frontend:
 
 build-backend:
 	cd backend
+
+run-frontend:
+	cd frontend && npx parcel --https
+

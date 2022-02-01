@@ -1,5 +1,6 @@
 import { atom, map, computed, onMount, listenKeys, action } from 'nanostores'
 
+// hello
 const GAME_STATE_INIT = "init"
 const GAME_STATE_PAUSE = "pause"
 const GAME_STATE_PLAY = "play"
@@ -27,13 +28,20 @@ let canvasRef, ctx, cells, settings
 let unbinds = []
 function init(_canvasRef, _ctx, _cells, _settings) {
     log("init")
+    const params = (new URL(window.location.href)).searchParams
+    const cellCount = parseInt(params.get("cells") || 100)
+    const gridSize = parseInt(params.get("size") || 50)
+    const spread = parseInt(params.get("spread") || 25)
+    const timeout = parseFloat(params.get("timeout") || 100)
+    console.log({cellCount, gridSize, spread})
+
     canvasRef = _canvasRef || document.getElementById("app")
     ctx = _ctx || canvasRef.getContext("2d")
 
-    cells = _cells || atom(initRandCells(100, 10))
+    cells = _cells || atom(initRandCells(cellCount, spread))
     settings = _settings || map({
-        timeout: 100,
-        gridSize: 50,
+        timeout,
+        gridSize,
         canvas: {
             x: 0,
             y: 0,
